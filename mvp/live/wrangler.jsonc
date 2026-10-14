@@ -1,0 +1,12 @@
+{
+  // Talat Pay live test. Deploy with: npx wrangler deploy  (see README.md)
+  "name": "talat-pay-test",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-01",
+  "assets": { "directory": "./public" },
+  "durable_objects": {
+    "bindings": [{ "name": "SHOPS", "class_name": "Shop" }]
+  },
+  // SQLite-backed Durable Objects work on Cloudflare's free Workers plan.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Shop"] }]
+}

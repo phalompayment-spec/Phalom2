@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E9F6E">
+<title>Talat Pay · Pay</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%229%22 fill=%22%230E9F6E%22/%3E%3Cpath d=%22M9 9h5v5H9zM18 9h5v5h-5zM9 18h5v5H9zM18 18h2v2h-2zM21 21h2v2h-2z%22 fill=%22%23fff%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Plus+Jakarta+Sans:wght@500;600;700&family=Noto+Sans+Lao:wght@500;700&display=swap">
+<link rel="stylesheet" href="/talat.css">
+<style>
+/* Tourist phone. Stands in for the tourist's own bank app after they scan the vendor's QR. Test money only. */
+.view{padding-bottom:28px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px 0}
+.top .brand{font-family:var(--f-display);font-weight:800;font-size:17px}
+.langs{display:flex;gap:4px;background:var(--card);border-radius:999px;box-shadow:var(--shadow);padding:4px}
+.langs button{min-width:40px;height:34px;padding:0 8px;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.langs button[aria-pressed="true"]{background:var(--jade-strong);color:var(--on-jade-strong)}
+.merchant{display:flex;align-items:center;gap:12px}
+.merchant .avatar{width:48px;height:48px}
+.merchant b{display:block;font-size:17px;line-height:1.25}
+.amount{text-align:center;padding:18px 0 8px}
+.amount .num{font-size:48px;line-height:1.05}
+.amount .num.zero{color:var(--ink-2)}
+.sheet-wrap{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:rgba(11,43,38,.4);animation:fade .25s ease both}
+.sheet{background:var(--paper);border-radius:30px 30px 0 0;padding:10px 16px calc(22px + env(safe-area-inset-bottom,0px));width:100%;max-width:480px;animation:sheet .42s var(--out) both}
+@keyframes sheet{from{transform:translateY(100%)}}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-2)}
+.kv span:last-child{font-weight:700;text-align:right}
+.hint{background:var(--sky-soft);border-radius:16px;padding:12px 14px;font-size:13.5px}
+.codein input{text-transform:uppercase;letter-spacing:.2em;font-weight:700;font-size:20px;text-align:center}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="testband" id="band"></div>
+  <main class="view" id="view"></main>
+</div>
+<script>
+"use strict";
+const T={
+  en:{test:"Test money. No real payment is made.",pick:"Pay with",
+    subLao:"This shop shows a LaoQR. These apps can scan it.",subCn:"This shop's QR is for Alipay and WeChat Pay.",
+    hintLao:"Paying with Alipay or WeChat? Ask the seller to switch their QR.",hintCn:"Paying with a bank app? Ask the seller to switch to LaoQR.",
+    amount:"Amount in kip",amountSub:"Ask the seller for the price in kip.",min:"At least ₭1,000",pay:"Pay",confirm:"Confirm payment",to:"To",with:"Pay with",
+    cancel:"Cancel",paying:"Paying…",paid:"Paid",show:"Show this screen to the seller.",again:"Pay again",ref:"Ref",time:"Time",
+    codeTitle:"Enter the shop code",codeSub:"Scan the QR at the shop, or type the 6-letter code printed under it.",open:"Open",
+    notFound:"No shop has this code.",netErr:"Couldn't connect. Check your internet and try again.",back:"Back",change:"Change"},
+  zh:{test:"测试金额，不会真实付款。",pick:"选择付款应用",
+    subLao:"该商户展示的是 LaoQR，以下应用可以扫码。",subCn:"该商户二维码支持支付宝和微信支付。",
+    hintLao:"使用支付宝或微信？请商家切换二维码。",hintCn:"使用银行应用？请商家切换到 LaoQR。",
+    amount:"金额（基普）",amountSub:"请向商家询问基普价格。",min:"最低 ₭1,000",pay:"付款",confirm:"确认付款",to:"收款方",with:"付款方式",
+    cancel:"取消",paying:"付款中…",paid:"付款成功",show:"请向商家出示此页面。",again:"再付一笔",ref:"编号",time:"时间",
+    codeTitle:"输入商户代码",codeSub:"请扫描店内二维码，或输入二维码下方的6位代码。",open:"打开",
+    notFound:"找不到该商户。",netErr:"连接失败，请检查网络后重试。",back:"返回",change:"更改"},
+  th:{test:"เงินทดสอบ ไม่มีการชำระเงินจริง",pick:"เลือกแอปที่ใช้จ่าย",
+    subLao:"ร้านนี้ใช้ LaoQR แอปเหล่านี้สแกนได้",subCn:"QR ของร้านนี้ใช้กับ Alipay และ WeChat Pay",
+    hintLao:"จ่ายด้วย Alipay หรือ WeChat? ขอให้ผู้ขายสลับ QR",hintCn:"จ่ายด้วยแอปธนาคาร? ขอให้ผู้ขายสลับเป็น LaoQR",
+    amount:"จำนวนเงิน (กีบ)",amountSub:"สอบถามราคาเป็นกีบจากผู้ขาย",min:"ขั้นต่ำ ₭1,000",pay:"ชำระเงิน",confirm:"ยืนยันการชำระเงิน",to:"ผู้รับ",with:"ชำระผ่าน",
+    cancel:"ยกเลิก",paying:"กำลังชำระ…",paid:"ชำระเงินแล้ว",show:"แสดงหน้าจอนี้ให้ผู้ขายดู",again:"จ่ายอีกครั้ง",ref:"เลขอ้างอิง",time:"เวลา",
+    codeTitle:"กรอกรหัสร้าน",codeSub:"สแกน QR ที่ร้าน หรือพิมพ์รหัส 6 ตัวที่อยู่ใต้ QR",open:"เปิด",
+    notFound:"ไม่พบร้านที่ใช้รหัสนี้",netErr:"เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง",back:"กลับ",change:"เปลี่ยน"},
+  vi:{test:"Tiền thử nghiệm. Không có thanh toán thật.",pick:"Thanh toán bằng",
+    subLao:"Cửa hàng này dùng LaoQR. Các ứng dụng sau quét được.",subCn:"Mã QR của cửa hàng này dành cho Alipay và WeChat Pay.",
+    hintLao:"Dùng Alipay hoặc WeChat? Nhờ người bán đổi mã QR.",hintCn:"Dùng ứng dụng ngân hàng? Nhờ người bán đổi sang LaoQR.",
+    amount:"Số tiền (kip)",amountSub:"Hỏi người bán giá bằng kip.",min:"Tối thiểu ₭1,000",pay:"Thanh toán",confirm:"Xác nhận thanh toán",to:"Người nhận",with:"Thanh toán qua",
+    cancel:"Hủy",paying:"Đang thanh toán…",paid:"Đã thanh toán",show:"Đưa màn hình này cho người bán xem.",again:"Thanh toán lại",ref:"Mã",time:"Thời gian",
+    codeTitle:"Nhập mã cửa hàng",codeSub:"Quét mã QR tại cửa hàng, hoặc nhập mã 6 ký tự in bên dưới.",open:"Mở",
+    notFound:"Không có cửa hàng nào dùng mã này.",netErr:"Không kết nối được. Kiểm tra mạng rồi thử lại.",back:"Quay lại",change:"Đổi"}
+};
+/* Which apps can pay which QR. Names match the server's app list. */
+const APPS=[
+  {id:"th",via:"lao",c:"TH",n:{en:"Thai bank app",zh:"泰国银行应用",th:"แอปธนาคารไทย",vi:"Ngân hàng Thái Lan"}},
+  {id:"vn",via:"lao",c:"VN",n:{en:"Vietnamese bank app",zh:"越南银行应用",th:"แอปธนาคารเวียดนาม",vi:"Ngân hàng Việt Nam"}},
+  {id:"kh",via:"lao",c:"KH",n:{en:"Cambodian bank app",zh:"柬埔寨银行应用",th:"แอปธนาคารกัมพูชา",vi:"Ngân hàng Campuchia"}},
+  {id:"up",via:"lao",c:"CN",n:{en:"UnionPay app",zh:"云闪付",th:"แอป UnionPay",vi:"UnionPay"}},
+  {id:"la",via:"lao",c:"LA",n:{en:"Lao bank app",zh:"老挝银行应用",th:"แอปธนาคารลาว",vi:"Ngân hàng Lào"}},
+  {id:"ali",via:"cn",c:"CN",n:{en:"Alipay",zh:"支付宝",th:"Alipay",vi:"Alipay"}},
+  {id:"wx",via:"cn",c:"CN",n:{en:"WeChat Pay",zh:"微信支付",th:"WeChat Pay",vi:"WeChat Pay"}}
+];
+const LANGS=[["en","EN"],["zh","中文"],["th","ไทย"],["vi","VI"]];
+const q=new URLSearchParams(location.search);
+const guess=()=>{let l="en";try{l=localStorage.getItem("talat.tlang")||""}catch(e){}if(T[l])return l;const n=(navigator.language||"en").slice(0,2);return T[n]?n:"en"};
+const S={lang:guess(),shop:null,via:q.get("via")==="cn"?"cn":"lao",step:"loading",app:null,amount:"",sale:null,err:"",busy:false};
+const t=k=>T[S.lang][k];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+const kip=n=>"₭ "+fmt(n);
+const appById=id=>APPS.find(a=>a.id===id);
+const ico=(p,cls="")=>`<svg class="line-ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const CHEV='<path d="M9 5l7 7-7 7"/>',BACK='<path d="M15 5l-7 7 7 7"/>',DEL='<path d="M9 6h11v12H9l-6-6z"/><path d="M12 10l4 4M16 10l-4 4"/>',STORE='<path d="M4 10h16l-1-5H5zM5 10v10h14V10M10 20v-5h4v5"/>';
+
+async function api(path,opts){const r=await fetch("/api/shops"+path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||r.status),{status:r.status});return j}
+
+function topBar(){return`<div class="top"><div class="brand">Talat Pay</div><div class="langs" role="group" aria-label="Language">${LANGS.map(([k,l])=>`<button class="tap" data-lang="${k}" aria-pressed="${k===S.lang}">${l}</button>`).join("")}</div></div>`}
+function merchantCard(){return`<div class="card merchant"><span class="avatar t-jade">${ico(STORE)}</span><div style="min-width:0"><b>${esc(S.shop.name)}</b>${S.shop.area?`<span class="cap">${esc(S.shop.area)}</span>`:""}</div></div>`}
+
+function vCode(){return`${topBar()}<div class="screen-head"><h2>${t("codeTitle")}</h2><div class="sub">${t("codeSub")}</div></div>
+  <form class="pad enter" id="codeForm" style="display:grid;gap:12px;margin-top:12px" novalidate>
+    <div class="input codein"><input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" aria-label="${t("codeTitle")}" placeholder="ABC234" value="${esc(q.get("shop")||"")}"></div>
+    ${S.err?`<div class="err" role="alert">${t(S.err)}</div>`:""}
+    <button class="btn full tap" type="submit">${t("open")}</button></form>`}
+
+function vApp(){const list=APPS.filter(a=>a.via===S.via);return`${topBar()}<div class="pad enter" style="margin-top:14px;display:grid;gap:14px">
+  ${merchantCard()}
+  <div><div class="sec-title" style="margin-top:6px"><h3>${t("pick")}</h3></div><div class="cap" style="margin:0 4px 10px">${S.via==="cn"?t("subCn"):t("subLao")}</div>
+  <div class="card list">${list.map(a=>`<button class="row tap" data-app="${a.id}"><span class="avatar ${a.via==="cn"?"t-sky":"t-jade"}">${a.c}</span><div class="main"><div class="title">${esc(a.n[S.lang])}</div></div>${ico(CHEV,"chev")}</button>`).join("")}</div></div>
+  <div class="hint">${S.via==="cn"?t("hintCn"):t("hintLao")}</div></div>`}
+
+function vAmount(){const a=appById(S.app),n=+S.amount||0,ok=n>=1000;return`${topBar()}<div class="pad enter" style="margin-top:14px;display:grid;gap:12px">
+  ${merchantCard()}
+  <div class="row card" style="margin:0;width:100%;padding:10px 16px"><span class="avatar ${a.via==="cn"?"t-sky":"t-jade"}">${a.c}</span><div class="main"><div class="cap">${t("with")}</div><div class="title">${esc(a.n[S.lang])}</div></div><button class="tap" data-act="change" style="color:var(--jade-strong);font-weight:700">${t("change")}</button></div>
+  <div class="amount"><div class="cap">${t("amount")}</div><div class="num ${n?"":"zero"}" aria-live="polite">${kip(n)}</div><div class="cap">${n&&!ok?t("min"):t("amountSub")}</div></div>
+  <div class="keypad">${["1","2","3","4","5","6","7","8","9","000","0","del"].map(k=>`<button class="key tap num" data-key="${k}" aria-label="${k==="del"?"Delete":k}">${k==="del"?ico(DEL):k}</button>`).join("")}</div>
+  <button class="btn full tap" data-act="review" ${ok?"":"disabled"}>${t("pay")} ${ok?kip(n):""}</button></div>`}
+
+function vDone(){const a=appById(S.app),s=S.sale;return`<div class="success" role="status">
+  <div class="burst">${[[-58,-40],[56,-46],[-62,30],[60,26],[-8,-68],[20,66]].map(([x,y])=>`<i class="coin" style="--dx:${x}px;--dy:${y}px"></i>`).join("")}<svg viewBox="0 0 150 150" aria-hidden="true"><circle cx="75" cy="75" r="50" fill="#0E9F6E"/><circle cx="75" cy="75" r="40" fill="#09845A"/><path class="check" d="M55 76l13 13 27-29" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div style="font-weight:700;font-size:20px">${t("paid")}</div>
+  <div class="big num money-in">${kip(s.kip)}</div>
+  <div class="card" style="width:min(100%,360px);text-align:left;padding-block:4px">
+    <div class="kv"><span>${t("to")}</span><span>${esc(S.shop.name)}</span></div>
+    <div class="kv"><span>${t("with")}</span><span>${esc(a.n[S.lang])}</span></div>
+    <div class="kv"><span>${t("time")}</span><span>${new Date(s.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span></div>
+    <div class="kv"><span>${t("ref")}</span><span>${esc(S.shop.id)}-${s.id}</span></div></div>
+  <div class="cap">${t("show")}</div>
+  <div class="pill p-wait">${t("test")}</div>
+  <button class="btn tap" data-act="again" style="min-width:180px">${t("again")}</button></div>`}
+
+function sheet(){const a=appById(S.app);return`<div class="sheet-wrap" data-act="closesheet"><div class="sheet" role="dialog" aria-label="${t("confirm")}">
+  <div class="grab"></div><h3 class="num" style="font-size:20px;margin:0 4px 10px">${t("confirm")}</h3>
+  <div class="card" style="padding-block:4px"><div class="kv"><span>${t("to")}</span><span>${esc(S.shop.name)}</span></div>
+  <div class="kv"><span>${t("with")}</span><span>${esc(a.n[S.lang])}</span></div>
+  <div class="kv"><span>${t("amount")}</span><span class="num" style="font-size:20px">${kip(+S.amount)}</span></div></div>
+  ${S.err?`<div class="err" role="alert" style="margin-top:10px">${t(S.err)}</div>`:""}
+  <div style="display:grid;gap:10px;margin-top:16px"><button class="btn full tap" data-act="pay" ${S.busy?"disabled":""}>${S.busy?t("paying"):`${t("pay")} ${kip(+S.amount)}`}</button>
+  <button class="btn full ghost tap" data-act="cancel">${t("cancel")}</button></div></div></div>`}
+
+let lastStep="";
+function render(){
+  document.documentElement.lang=S.lang==="zh"?"zh-Hans":S.lang;
+  $("#band").textContent=t("test");
+  const v=$("#view");
+  if(S.step==="loading"){v.innerHTML=topBar();return}
+  v.innerHTML=S.step==="code"?vCode():S.step==="app"?vApp():S.step==="amount"?vAmount():"";
+  if(S.step==="confirm"){v.innerHTML=vAmount()+sheet()}
+  if(S.step==="done"){v.innerHTML=vDone()}
+  /* Fade in only when the screen changes, not on every key press. */
+  const base=S.step==="confirm"?"amount":S.step;if(base===lastStep)v.querySelectorAll(".enter").forEach(e=>e.classList.remove("enter"));lastStep=base;
+}
+
+async function load(code){
+  S.err="";
+  try{const info=await api(`/${code}`);S.shop=info;S.step=S.app?"amount":"app";
+    history.replaceState(null,"",`/tourist?shop=${info.id}&via=${S.via}`)}
+  catch(e){S.step="code";S.err=e.status===404||e.status===400?"notFound":"netErr"}
+  render();
+}
+async function pay(){
+  if(S.busy)return;S.busy=true;S.err="";render();
+  try{const {sale}=await api(`/${S.shop.id}/pay`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kip:+S.amount,app:S.app})});
+    S.sale=sale;S.step="done";try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
+  catch(e){S.err="netErr"}
+  S.busy=false;render();
+}
+
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-lang],[data-app],[data-key],[data-act]");if(!el)return;const d=el.dataset;
+  if(d.lang){S.lang=d.lang;try{localStorage.setItem("talat.tlang",S.lang)}catch(x){}return render()}
+  if(d.app){S.app=d.app;S.amount="";S.step="amount";return render()}
+  if(d.key){if(d.key==="del")S.amount=S.amount.slice(0,-1);else if(S.amount.length<9&&!(S.amount===""&&/^0+$/.test(d.key)))S.amount=(S.amount+d.key).slice(0,9);
+    if(+S.amount>100000000)S.amount="100000000";return render()}
+  switch(d.act){
+    case "change":S.step="app";break;
+    case "review":if(+S.amount>=1000){S.err="";S.step="confirm"}break;
+    case "closesheet":if(e.target!==el)return;S.step="amount";break;
+    case "cancel":S.step="amount";break;
+    case "pay":return pay();
+    case "again":S.amount="";S.sale=null;S.step="amount";break;
+  }
+  render();
+});
+document.addEventListener("submit",e=>{e.preventDefault();const code=$("#code").value.trim().toUpperCase();
+  if(!/^[A-Z2-9]{6}$/.test(code)){S.err="notFound";return render()}S.step="loading";render();load(code)});
+
+const code=(q.get("shop")||"").toUpperCase();
+if(/^[A-Z2-9]{6}$/.test(code)){render();load(code)}else{S.step="code";render()}
+</script>
+</body>
+</html>
